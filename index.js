@@ -1,5 +1,7 @@
 const { Client, Events, GatewayIntentBits } = require("discord.js");
 const schedule = require('node-schedule');
+const keep_alive = require('./keep_alive.js')
+
 require('dotenv').config();
 
 // Cliente Discord
