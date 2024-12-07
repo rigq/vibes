@@ -1,5 +1,6 @@
 const { Client, Events, GatewayIntentBits } = require("discord.js");
 const schedule = require('node-schedule');
+require('dotenv').config();
 
 // Cliente Discord
 const client = new Client({
@@ -7,14 +8,14 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-    ]
+    ],
 });
 
 let messageCounts = {};
 
 // Evento de inicio
 client.on(Events.ClientReady, () => {
-    console.log(`Conectando como ${client.user.username}!`);
+    console.log(`Conectado como ${client.user.tag}!`);
 });
 
 // Sistema de bienvenida
@@ -22,30 +23,30 @@ client.on(Events.GuildMemberAdd, async (member) => {
     const welcomeChannelId = '1103302221904498732'; // ID del canal de bienvenida
     const channel = await client.channels.fetch(welcomeChannelId);
 
-    channel.send(`**GOT A DROP 💨💢 ON THIS <@${member.user.id}> NIGGA 🔪🔫 **`);
+    if (channel) {
+        channel.send(`**GOT A DROP 💨💢 ON THIS <@${member.user.id}> NIGGA 🔪🔫**`);
+    }
 });
 
 // Contar los mensajes de los usuarios
 client.on(Events.MessageCreate, (message) => {
     if (message.author.bot) return;
+
+    // Incrementar contador de mensajes
     const userId = message.author.id;
-    if (!messageCounts[userId]) {
-        messageCounts[userId] = 0;
-    }
-    messageCounts[userId]++;
-    
+    messageCounts[userId] = (messageCounts[userId] || 0) + 1;
+
     // Comandos
-    if (!message.content.startsWith('-')) return;
+    if (message.content.startsWith('-')) {
+        const args = message.content.slice(1).split(' ');
+        const command = args[0];
 
-    const args = message.content.slice(1).split(' ');
-    const command = args[0];
-
-    try {
-        // Asegúrate de tener una carpeta 'commands' con los archivos correspondientes
-        const commandFile = require(`./commands/${command}`);
-        commandFile.run(message, args);
-    } catch (error) {
-        console.log('Error en el comando:', error.message);
+        try {
+            const commandFile = require(`./commands/${command}`);
+            commandFile.run(message, args);
+        } catch (error) {
+            console.log('Error en el comando:', error.message);
+        }
     }
 });
 
@@ -103,9 +104,9 @@ schedule.scheduleJob('59 23 * * *', async () => {
         }
     }
 
-    // Reiniciar los conteos para el siguiente día
+    // Reiniciar el conteo para el siguiente día
     messageCounts = {};
 });
 
 // Conectar el bot
-client.login("MTMxNDM3NTE3ODM4MTI5NTc0OA.G5EVLf.NE2ILwykxX5durHYhC4-GIQ7mAy6z4Jul5uiRA");
+client.login(process.env.TOKEN);
