@@ -1,6 +1,6 @@
 //archivo index
 const {Client, Events} = require("discord.js");
-
+const keep_alive = require('./keep_alive.js')
 //cliente dc
 const client = new Client({
     intents: 53608429
