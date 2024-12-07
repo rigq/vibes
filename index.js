@@ -88,5 +88,5 @@ setInterval(() => {
   }, 60000); // Revisa cada minuto
   
 //conectar
-client.login("MTMxNDM3NTE3ODM4MTI5NTc0OA.GCh9-K.q4uS8_jvGqqzJ0jqWh0R3FpgLio-M-x2wSVChk");
+client.login(process.env.TOKEN);
 
