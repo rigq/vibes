@@ -13,7 +13,8 @@ const client = new Client({
     ],
 });
 
-let messageCounts = {};
+let messageCounts = {}; // Almacena el conteo de mensajes globales
+let channelMessageCounts = {}; // Almacena el conteo de mensajes en el canal "contador"
 
 // Evento de inicio
 client.on(Events.ClientReady, () => {
@@ -30,13 +31,18 @@ client.on(Events.GuildMemberAdd, async (member) => {
     }
 });
 
-// Contar los mensajes de los usuarios
+// Contar los mensajes de los usuarios en el canal "contador"
 client.on(Events.MessageCreate, (message) => {
     if (message.author.bot) return;
 
-    // Incrementar contador de mensajes
-    const userId = message.author.id;
-    messageCounts[userId] = (messageCounts[userId] || 0) + 1;
+    // Verificar si el mensaje es en el canal "contador"
+    const contadorChannelId = '1103333697551339541'; // Reemplaza con el ID del canal "contador"
+    if (message.channel.id === contadorChannelId) {
+        const userId = message.author.id;
+
+        // Incrementar el contador de mensajes en el canal "contador"
+        channelMessageCounts[userId] = (channelMessageCounts[userId] || 0) + 1;
+    }
 
     // Comandos
     if (message.content.startsWith('-')) {
@@ -44,8 +50,34 @@ client.on(Events.MessageCreate, (message) => {
         const command = args[0];
 
         try {
-            const commandFile = require(`./commands/${command}`);
-            commandFile.run(message, args);
+            if (command === "top") {
+                // Comando -top
+                const topMessages = Object.entries(channelMessageCounts)
+                    .sort((a, b) => b[1] - a[1]) // Ordenar de mayor a menor
+                    .slice(0, 10); // Top 10
+
+                let topMessage = ':bar_chart: **TOP 10  👽**\n';
+                topMessages.forEach(([userId, count], index) => {
+                    topMessage += `${index + 1}. <@${userId}>: ${count} mensajes\n`;
+                });
+
+                message.channel.send(topMessage);
+            } 
+            else if (command === "add") {
+                // Comando -add
+                const amount = parseInt(args[1]);
+                if (isNaN(amount) || amount <= 0) {
+                    message.channel.send("Por favor, ingresa una cantidad válida de mensajes.");
+                    return;
+                }
+
+                const userId = message.author.id;
+
+                // Añadir puntos al usuario en el canal "contador"
+                channelMessageCounts[userId] = (channelMessageCounts[userId] || 0) + amount;
+
+                message.channel.send(`Se han añadido **${amount}** goles a <@${userId}> en la temporada. Ahora tiene **${channelMessageCounts[userId]}** goles en total.`);
+            }
         } catch (error) {
             console.log('Error en el comando:', error.message);
         }
@@ -59,14 +91,15 @@ schedule.scheduleJob('59 23 * * *', async () => {
 
     if (channel) {
         let summary = ':bar_chart: **RESUMEN 👽**\n';
-        for (const [userId, count] of Object.entries(messageCounts)) {
-            summary += `<@${userId}>: ${count} mensajes\n`;
+        for (const [userId, count] of Object.entries(channelMessageCounts)) {
+            summary += `<@${userId}>: ${count} goles"\n`;
         }
         await channel.send(summary);
     }
 
     // Reiniciar el conteo para el siguiente día
     messageCounts = {};
+    channelMessageCounts = {};
 });
 
 // Asignar rol al final del día
@@ -76,11 +109,11 @@ schedule.scheduleJob('59 23 * * *', async () => {
 
     const guild = targetChannel.guild;
 
-    // Encuentra el número máximo de mensajes enviados
-    const maxMessages = Math.max(...Object.values(messageCounts));
+    // Encuentra el número máximo de mensajes enviados en el canal "contador"
+    const maxMessages = Math.max(...Object.values(channelMessageCounts));
 
     // Encuentra a todos los usuarios con el número máximo de mensajes
-    const topUsers = Object.keys(messageCounts).filter(userId => messageCounts[userId] === maxMessages);
+    const topUsers = Object.keys(channelMessageCounts).filter(userId => channelMessageCounts[userId] === maxMessages);
 
     if (topUsers.length > 0) {
         try {
@@ -108,6 +141,7 @@ schedule.scheduleJob('59 23 * * *', async () => {
 
     // Reiniciar el conteo para el siguiente día
     messageCounts = {};
+    channelMessageCounts = {};
 });
 
 // Conectar el bot
