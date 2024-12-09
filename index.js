@@ -50,20 +50,7 @@ client.on(Events.MessageCreate, (message) => {
         const command = args[0];
 
         try {
-            if (command === "top") {
-                // Comando -top
-                const topMessages = Object.entries(channelMessageCounts)
-                    .sort((a, b) => b[1] - a[1]) // Ordenar de mayor a menor
-                    .slice(0, 10); // Top 10
-
-                let topMessage = ':bar_chart: **TOP 10  👽**\n';
-                topMessages.forEach(([userId, count], index) => {
-                    topMessage += `${index + 1}. <@${userId}>: ${count} mensajes\n`;
-                });
-
-                message.channel.send(topMessage);
-            } 
-            else if (command === "add") {
+              if (command === "add") {
                 // Comando -add
                 const amount = parseInt(args[1]);
                 if (isNaN(amount) || amount <= 0) {
@@ -143,6 +130,146 @@ schedule.scheduleJob('59 23 * * *', async () => {
     messageCounts = {};
     channelMessageCounts = {};
 });
+
+
+// TODO
+
+const fs = require("fs");
+require("dotenv").config();
+
+let dailyPoints = {}; // Recuento de puntos diarios
+let monthlyPoints = {}; // Recuento de puntos mensuales
+
+// Función para guardar puntos mensuales en un archivo JSON
+function guardarPuntosMensuales() {
+    fs.writeFileSync("monthlyPoints.json", JSON.stringify(monthlyPoints, null, 2));
+}
+
+function cargarPuntosMensuales() {
+    const filePath = "monthlyPoints.json";  // Cambia el nombre si es necesario
+
+    if (fs.existsSync(filePath)) {
+        try {
+            const fileContent = fs.readFileSync(filePath, "utf8");
+
+            // Verifica si el archivo no está vacío y es un JSON válido
+            if (fileContent.trim()) {
+                monthlyPoints = JSON.parse(fileContent);
+            } else {
+                monthlyPoints = {};  // Si el archivo está vacío, inicializa con un objeto vacío
+            }
+        } catch (error) {
+            console.error("Error al leer el archivo JSON:", error);
+            monthlyPoints = {};  // Si ocurre un error, inicializa con un objeto vacío
+        }
+    } else {
+        monthlyPoints = {};  // Si el archivo no existe, inicializa con un objeto vacío
+    }
+}
+
+// Cargar puntos mensuales al iniciar el bot
+cargarPuntosMensuales();
+
+// Evento para contar mensajes en el canal "contador"
+client.on(Events.MessageCreate, (message) => {
+    if (message.author.bot) return;
+
+    const channelId = "1103333697551339541"; // Reemplaza con el ID del canal "contador"
+    if (message.channel.id === channelId) {
+        const userId = message.author.id;
+
+        // Incrementar puntos diarios
+        dailyPoints[userId] = (dailyPoints[userId] || 0) + 1;
+
+        // Incrementar puntos mensuales
+        monthlyPoints[userId] = (monthlyPoints[userId] || 0) + 1;
+    }
+});
+
+schedule.scheduleJob("56 17 * * *", async () => {
+    const channelId = "1103333697551339541"; // Reemplaza con el ID del canal de resumen
+    const channel = client.channels.cache.get(channelId);
+
+    if (channel) {
+        // Determinar el máximo goleador
+        const topUserId = Object.keys(dailyPoints).reduce((a, b) =>
+            dailyPoints[a] > dailyPoints[b] ? a : b
+        );
+
+        const topUserPoints = dailyPoints[topUserId];
+
+        // Crear el resumen estilo partido de fútbol
+        let resumen = `:soccer: **Resumen Diario** 🍆\n\n`;
+        resumen += `El **MVP del día** es <@${topUserId}> con **${topUserPoints} manualidades**. ¡Imparable en el ataque! 🔥\n\n`;
+
+        // Descripción de otros jugadores
+        const sortedDaily = Object.entries(dailyPoints).sort((a, b) => b[1] - a[1]);
+        resumen += `**Resto de la tabla de goleadores:**\n`;
+        sortedDaily.forEach(([userId, points], index) => {
+            resumen += `#${index + 1} <@${userId}>: ${points} \n`;
+        });
+
+        resumen += `\n¡Gran esfuerzo de todos los jugadores hoy! 🏆 Nos vemos mañana para otro partidazo.\n`;
+
+        // Enviar el resumen al canal
+        await channel.send(resumen);
+    }
+
+    // Reiniciar puntos diarios
+    dailyPoints = {};
+});
+
+//SETPOINTS
+
+
+// Comando -top para mostrar el ranking mensual
+client.on(Events.MessageCreate, (message) => {
+    if (message.content.startsWith("-top")) {
+        const args = message.content.split(" ");
+        const topCount = args[1] ? parseInt(args[1], 10) : 10; // Número de usuarios a mostrar (por defecto 10)
+
+        const sortedMonthly = Object.entries(monthlyPoints).sort((a, b) => b[1] - a[1]);
+        const topUsers = sortedMonthly.slice(0, topCount);
+
+        let response = `🏆 **TOP DICIEMBRE 👑** 🏆\n\n`;
+        topUsers.forEach(([userId, points], index) => {
+            response += `#${index + 1} <@${userId}>: ${points} 💦\n`;
+        });
+
+        message.channel.send(response);
+    }
+
+    // Comando -setpoints para editar puntos
+if (message.content.startsWith("-setpoints")) {
+    const args = message.content.split(" ");
+    const user = message.mentions.users.first();
+    const points = parseInt(args[2], 10);
+
+    // Comprobar si el mensaje es válido
+    if (!user || isNaN(points)) {
+        return message.reply("Por favor, usa el comando correctamente: `-setpoints @usuario puntos`");
+    }
+
+    // Cambiar los puntos del usuario
+    monthlyPoints[user.id] = points;
+
+    // Guardar los cambios en el archivo JSON
+    guardarPuntosMensuales();
+
+    // Confirmar la actualización
+    message.reply(`Los puntos de <@${user.id}> han sido actualizados a ${points}.`);
+}
+
+});
+
+
+
+// Guardar puntos mensuales antes de que el bot se apague
+process.on("SIGINT", () => {
+    guardarPuntosMensuales();
+    process.exit();
+});
+
 
 // Conectar el bot
 client.login(process.env.TOKEN);
