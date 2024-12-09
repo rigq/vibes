@@ -71,24 +71,6 @@ client.on(Events.MessageCreate, (message) => {
     }
 });
 
-// Enviar resumen al final del día
-schedule.scheduleJob('59 23 * * *', async () => {
-    const channelId = '1103333697551339541'; // ID del canal para el resumen
-    const channel = client.channels.cache.get(channelId);
-
-    if (channel) {
-        let summary = ':bar_chart: **RESUMEN 👽**\n';
-        for (const [userId, count] of Object.entries(channelMessageCounts)) {
-            summary += `<@${userId}>: ${count} goles"\n`;
-        }
-        await channel.send(summary);
-    }
-
-    // Reiniciar el conteo para el siguiente día
-    messageCounts = {};
-    channelMessageCounts = {};
-});
-
 // Asignar rol al final del día
 schedule.scheduleJob('59 23 * * *', async () => {
     const targetChannel = client.channels.cache.get('1103333697551339541');
@@ -186,7 +168,7 @@ client.on(Events.MessageCreate, (message) => {
     }
 });
 
-schedule.scheduleJob("56 17 * * *", async () => {
+schedule.scheduleJob("59 23 * * *", async () => {
     const channelId = "1103333697551339541"; // Reemplaza con el ID del canal de resumen
     const channel = client.channels.cache.get(channelId);
 
