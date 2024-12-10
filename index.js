@@ -114,8 +114,6 @@ schedule.scheduleJob('59 23 * * *', async () => {
 });
 
 
-// TODO
-
 const fs = require("fs");
 require("dotenv").config();
 
@@ -128,7 +126,7 @@ function guardarPuntosMensuales() {
 }
 
 function cargarPuntosMensuales() {
-    const filePath = "monthlyPoints.json";  // Cambia el nombre si es necesario
+    const filePath = "monthlyPoints.json"; // Cambia el nombre si es necesario
 
     if (fs.existsSync(filePath)) {
         try {
@@ -138,14 +136,14 @@ function cargarPuntosMensuales() {
             if (fileContent.trim()) {
                 monthlyPoints = JSON.parse(fileContent);
             } else {
-                monthlyPoints = {};  // Si el archivo está vacío, inicializa con un objeto vacío
+                monthlyPoints = {}; // Si el archivo está vacío, inicializa con un objeto vacío
             }
         } catch (error) {
             console.error("Error al leer el archivo JSON:", error);
-            monthlyPoints = {};  // Si ocurre un error, inicializa con un objeto vacío
+            monthlyPoints = {}; // Si ocurre un error, inicializa con un objeto vacío
         }
     } else {
-        monthlyPoints = {};  // Si el archivo no existe, inicializa con un objeto vacío
+        monthlyPoints = {}; // Si el archivo no existe, inicializa con un objeto vacío
     }
 }
 
@@ -168,7 +166,7 @@ client.on(Events.MessageCreate, (message) => {
     }
 });
 
-schedule.scheduleJob("59 23 * * *", async () => {
+schedule.scheduleJob("'59 23 * * *", async () => {
     const channelId = "1103333697551339541"; // Reemplaza con el ID del canal de resumen
     const channel = client.channels.cache.get(channelId);
 
@@ -182,7 +180,7 @@ schedule.scheduleJob("59 23 * * *", async () => {
 
         // Crear el resumen estilo partido de fútbol
         let resumen = `:soccer: **Resumen Diario** 🍆\n\n`;
-        resumen += `El **MVP del día** es <@${topUserId}> con **${topUserPoints} manualidades**. ¡Imparable en el ataque! 🔥\n\n`;
+        resumen += `El **MVP del día** es <@${topUserId}> con **${topUserPoints} manualidades**. ¡Alguna le habra dedicado a Fran! 🔥\n\n`;
 
         // Descripción de otros jugadores
         const sortedDaily = Object.entries(dailyPoints).sort((a, b) => b[1] - a[1]);
@@ -201,9 +199,6 @@ schedule.scheduleJob("59 23 * * *", async () => {
     dailyPoints = {};
 });
 
-//SETPOINTS
-
-
 // Comando -top para mostrar el ranking mensual
 client.on(Events.MessageCreate, (message) => {
     if (message.content.startsWith("-top")) {
@@ -213,7 +208,7 @@ client.on(Events.MessageCreate, (message) => {
         const sortedMonthly = Object.entries(monthlyPoints).sort((a, b) => b[1] - a[1]);
         const topUsers = sortedMonthly.slice(0, topCount);
 
-        let response = `🏆 **TOP DICIEMBRE 👑** 🏆\n\n`;
+        let response = `🏆 **TOP DICIEMBRE 👑**\n\n`;
         topUsers.forEach(([userId, points], index) => {
             response += `#${index + 1} <@${userId}>: ${points} 💦\n`;
         });
@@ -222,34 +217,41 @@ client.on(Events.MessageCreate, (message) => {
     }
 
     // Comando -setpoints para editar puntos
-if (message.content.startsWith("-setpoints")) {
-    const args = message.content.split(" ");
-    const user = message.mentions.users.first();
-    const points = parseInt(args[2], 10);
+    if (message.content.startsWith("-setpoints")) {
+        const args = message.content.split(" ");
+        const user = message.mentions.users.first();
+        const points = parseInt(args[2], 10);
 
-    // Comprobar si el mensaje es válido
-    if (!user || isNaN(points)) {
-        return message.reply("Por favor, usa el comando correctamente: `-setpoints @usuario puntos`");
+        // Comprobar si el mensaje es válido
+        if (!user || isNaN(points)) {
+            return message.reply("Por favor, usa el comando correctamente: `-setpoints @usuario puntos`");
+        }
+
+        // Cambiar los puntos del usuario
+        monthlyPoints[user.id] = points;
+
+        // Guardar los cambios en el archivo JSON
+        guardarPuntosMensuales();
+
+        // Confirmar la actualización
+        message.reply(`Los puntos de <@${user.id}> han sido actualizados a ${points}.`);
+
+        // Enviar el recuento actualizado a un canal específico
+        const resumenChannelId = "1316185298560090204"; // Reemplaza con el ID del canal para el resumen
+        const resumenChannel = client.channels.cache.get(resumenChannelId);
+
+        if (resumenChannel) {
+            const sortedMonthly = Object.entries(monthlyPoints).sort((a, b) => b[1] - a[1]);
+            const topUsers = sortedMonthly;
+
+            let resumen = `🏆 **RECUENTO ACTUALIZADO 👑** 🏆\n\n`;
+            topUsers.forEach(([userId, points], index) => {
+                resumen += `#${index + 1} <@${userId}>: ${points} 💦\n`;
+            });
+
+            resumenChannel.send(resumen);
+        }
     }
-
-    // Cambiar los puntos del usuario
-    monthlyPoints[user.id] = points;
-
-    // Guardar los cambios en el archivo JSON
-    guardarPuntosMensuales();
-
-    // Confirmar la actualización
-    message.reply(`Los puntos de <@${user.id}> han sido actualizados a ${points}.`);
-}
-
-});
-
-
-
-// Guardar puntos mensuales antes de que el bot se apague
-process.on("SIGINT", () => {
-    guardarPuntosMensuales();
-    process.exit();
 });
 
 
