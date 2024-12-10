@@ -1,4 +1,4 @@
-const { Client, Events, GatewayIntentBits } = require("discord.js");
+const { Client, Events, GatewayIntentBits, Collection } = require("discord.js");
 const schedule = require('node-schedule');
 const keep_alive = require('./keep_alive.js')
 
@@ -12,6 +12,44 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
     ],
 });
+
+
+const fs = require("fs");
+const path = require('path');
+
+// Crear una colección para los comandos
+client.commands = new Collection();
+
+// Cargar los comandos desde la carpeta "commands"
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    client.commands.set(file.replace('.js', ''), command);
+}
+
+// Manejar eventos de mensajes
+client.on('messageCreate', async (message) => {
+    if (message.author.bot || !message.content.startsWith('-')) return;
+
+    const args = message.content.slice(1).trim().split(/ +/g);
+    const commandName = args.shift().toLowerCase();
+
+    const command = client.commands.get(commandName);
+
+    if (!command) return;
+
+    try {
+        await command.run(message, args);
+    } catch (error) {
+        console.error(error);
+        message.reply('Hubo un error ejecutando ese comando.');
+    }
+});
+
+
 
 let messageCounts = {}; // Almacena el conteo de mensajes globales
 let channelMessageCounts = {}; // Almacena el conteo de mensajes en el canal "contador"
@@ -42,32 +80,6 @@ client.on(Events.MessageCreate, (message) => {
 
         // Incrementar el contador de mensajes en el canal "contador"
         channelMessageCounts[userId] = (channelMessageCounts[userId] || 0) + 1;
-    }
-
-    // Comandos
-    if (message.content.startsWith('-')) {
-        const args = message.content.slice(1).split(' ');
-        const command = args[0];
-
-        try {
-              if (command === "add") {
-                // Comando -add
-                const amount = parseInt(args[1]);
-                if (isNaN(amount) || amount <= 0) {
-                    message.channel.send("Por favor, ingresa una cantidad válida de mensajes.");
-                    return;
-                }
-
-                const userId = message.author.id;
-
-                // Añadir puntos al usuario en el canal "contador"
-                channelMessageCounts[userId] = (channelMessageCounts[userId] || 0) + amount;
-
-                message.channel.send(`Se han añadido **${amount}** goles a <@${userId}> en la temporada. Ahora tiene **${channelMessageCounts[userId]}** goles en total.`);
-            }
-        } catch (error) {
-            console.log('Error en el comando:', error.message);
-        }
     }
 });
 
@@ -114,7 +126,6 @@ schedule.scheduleJob('59 23 * * *', async () => {
 });
 
 
-const fs = require("fs");
 require("dotenv").config();
 
 let dailyPoints = {}; // Recuento de puntos diarios
