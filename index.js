@@ -1,6 +1,6 @@
 const { Client, Events, GatewayIntentBits, Collection } = require("discord.js");
 const schedule = require('node-schedule');
-const keep_alive = require('./keep_alive.js')
+const keep_alive = require('./keep_alive.js');
 
 require('dotenv').config();
 
@@ -29,28 +29,7 @@ for (const file of commandFiles) {
     client.commands.set(file.replace('.js', ''), command);
 }
 
-// Manejar eventos de mensajes
-client.on('messageCreate', async (message) => {
-    if (message.author.bot || !message.content.startsWith('-')) return;
-
-    const args = message.content.slice(1).trim().split(/ +/g);
-    const commandName = args.shift().toLowerCase();
-
-    const command = client.commands.get(commandName);
-
-    if (!command) return;
-
-    try {
-        await command.run(message, args);
-    } catch (error) {
-        console.error(error);
-        message.reply('Hubo un error ejecutando ese comando.');
-    }
-});
-
-let messageCounts = {}; // Almacena el conteo de mensajes globales
-let channelMessageCounts = {}; // Almacena el conteo de mensajes en el canal "contador"
-
+// Variables para almacenar puntos
 let dailyPoints = {}; // Recuento de puntos diarios
 let monthlyPoints = {}; // Recuento de puntos mensuales
 
@@ -59,25 +38,24 @@ function guardarPuntosMensuales() {
     fs.writeFileSync("monthlyPoints.json", JSON.stringify(monthlyPoints, null, 2));
 }
 
+// Función para cargar puntos mensuales desde el archivo JSON
 function cargarPuntosMensuales() {
-    const filePath = "monthlyPoints.json"; // Cambia el nombre si es necesario
+    const filePath = "monthlyPoints.json"; 
 
     if (fs.existsSync(filePath)) {
         try {
             const fileContent = fs.readFileSync(filePath, "utf8");
-
-            // Verifica si el archivo no está vacío y es un JSON válido
             if (fileContent.trim()) {
                 monthlyPoints = JSON.parse(fileContent);
             } else {
-                monthlyPoints = {}; // Si el archivo está vacío, inicializa con un objeto vacío
+                monthlyPoints = {}; 
             }
         } catch (error) {
             console.error("Error al leer el archivo JSON:", error);
-            monthlyPoints = {}; // Si ocurre un error, inicializa con un objeto vacío
+            monthlyPoints = {}; 
         }
     } else {
-        monthlyPoints = {}; // Si el archivo no existe, inicializa con un objeto vacío
+        monthlyPoints = {}; 
     }
 }
 
@@ -109,19 +87,22 @@ client.on(Events.MessageCreate, (message) => {
         const userId = message.author.id;
 
         // Incrementar el contador de mensajes en el canal "contador"
-        channelMessageCounts[userId] = (channelMessageCounts[userId] || 0) + 1;
+        monthlyPoints[userId] = (monthlyPoints[userId] || 0) + 1;
+
+        // Guardar los puntos mensuales en el archivo JSON
+        guardarPuntosMensuales();
 
         // Incrementar puntos diarios
         dailyPoints[userId] = (dailyPoints[userId] || 0) + 1;
-
-        // Incrementar puntos mensuales
-        monthlyPoints[userId] = (monthlyPoints[userId] || 0) + 1;
     }
 
     // Comando -top para mostrar el ranking mensual
     if (message.content.startsWith("-top")) {
         const args = message.content.split(" ");
         const topCount = args[1] ? parseInt(args[1], 10) : 10; // Número de usuarios a mostrar (por defecto 10)
+
+        // Recargar puntos mensuales del archivo JSON antes de mostrar el ranking
+        cargarPuntosMensuales();
 
         const sortedMonthly = Object.entries(monthlyPoints).sort((a, b) => b[1] - a[1]);
         const topUsers = sortedMonthly.slice(0, topCount);
@@ -180,10 +161,10 @@ schedule.scheduleJob('59 23 * * *', async () => {
     const guild = targetChannel.guild;
 
     // Encuentra el número máximo de mensajes enviados en el canal "contador"
-    const maxMessages = Math.max(...Object.values(channelMessageCounts));
+    const maxMessages = Math.max(...Object.values(monthlyPoints));
 
     // Encuentra a todos los usuarios con el número máximo de mensajes
-    const topUsers = Object.keys(channelMessageCounts).filter(userId => channelMessageCounts[userId] === maxMessages);
+    const topUsers = Object.keys(monthlyPoints).filter(userId => monthlyPoints[userId] === maxMessages);
 
     if (topUsers.length > 0) {
         try {
@@ -210,8 +191,7 @@ schedule.scheduleJob('59 23 * * *', async () => {
     }
 
     // Reiniciar el conteo para el siguiente día
-    messageCounts = {};
-    channelMessageCounts = {};
+    dailyPoints = {};
 });
 
 // Resumen diario y reinicio de puntos
